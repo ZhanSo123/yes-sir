@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Простая викторина</title>
+    <style>
+      :root {
+        --bg: #f7f4ef;
+        --ink: #171717;
+        --accent: #ff6b2c;
+        --accent-dark: #e4551c;
+        --card: #ffffff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Georgia", "Times New Roman", serif;
+        background: radial-gradient(circle at 20% 20%, #fff5e9, #f1e6da);
+        color: var(--ink);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+
+      body.screamer-active {
+        cursor: none;
+        background: #000;
+      }
+
+      .card {
+        width: min(640px, 92vw);
+        background: var(--card);
+        border: 2px solid #1e1e1e;
+        box-shadow: 8px 8px 0 #1e1e1e;
+        padding: 28px;
+      }
+
+      h1 {
+        font-size: 20px;
+        margin: 0 0 16px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      #question {
+        font-size: 24px;
+        line-height: 1.35;
+        margin: 0 0 20px;
+      }
+
+      .answers {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      button.answer {
+        appearance: none;
+        border: 2px solid #1e1e1e;
+        background: #fffaf2;
+        color: var(--ink);
+        font-size: 18px;
+        padding: 12px 16px;
+        text-align: left;
+        cursor: pointer;
+        transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+        box-shadow: 4px 4px 0 #1e1e1e;
+      }
+
+      button.answer:hover {
+        transform: translate(-2px, -2px);
+        box-shadow: 6px 6px 0 #1e1e1e;
+        background: #fff0dd;
+      }
+
+      button.answer:active {
+        transform: translate(0, 0);
+        box-shadow: 2px 2px 0 #1e1e1e;
+      }
+
+      .status {
+        margin-top: 16px;
+        font-size: 14px;
+        color: #444;
+      }
+
+      #screamer-overlay {
+        position: fixed;
+        inset: 0;
+        background: #000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+
+      #screamer-overlay.active {
+        display: flex;
+      }
+
+      #screamer {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      #lock-message {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 20px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        background: #000;
+        z-index: 10000;
+      }
+
+      #lock-message.active {
+        display: flex;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card" id="game">
+      <h1>Вопрос дня</h1>
+      <p id="question"></p>
+      <div class="answers" id="answers"></div>
+      <div class="status" id="status"></div>
+    </main>
+
+    <div id="screamer-overlay">
+      <video
+        id="screamer"
+        src="gdfgdgf.mp3"
+        preload="auto"
+        poster="1551894329_scary-face-live-wallpaper-for-windows.jpg"
+      ></video>
+    </div>
+    <div id="lock-message">СТРАНИЦА ЗАБЛОКИРОВАНА</div>
+
+    <script>
+      const questions = [
+        {
+          question: "Какой язык отвечает за структуру страницы?",
+          answers: ["CSS", "HTML", "JavaScript", "SQL"],
+          correctIndex: 1,
+        },
+        {
+          question: "Какой метод добавляет элемент в конец массива?",
+          answers: ["push()", "shift()", "pop()", "join()"],
+          correctIndex: 0,
+        },
+        {
+          question: "Какой тег подключает видео?",
+          answers: ["<audio>", "<img>", "<video>", "<canvas>"],
+          correctIndex: 2,
+        },
+      ];
+
+      const questionEl = document.getElementById("question");
+      const answersEl = document.getElementById("answers");
+      const statusEl = document.getElementById("status");
+      const screamerOverlay = document.getElementById("screamer-overlay");
+      const screamerVideo = document.getElementById("screamer");
+      const lockMessage = document.getElementById("lock-message");
+
+      let currentIndex = 0;
+      let locked = false;
+      let screamerActive = false;
+
+      function renderQuestion() {
+        const current = questions[currentIndex];
+        if (!current) {
+          questionEl.textContent = "Игра окончена. Отличная работа!";
+          answersEl.innerHTML = "";
+          statusEl.textContent = "Вы ответили на все вопросы.";
+          return;
+        }
+
+        questionEl.textContent = current.question;
+        answersEl.innerHTML = "";
+        current.answers.forEach((answer, index) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "answer";
+          button.textContent = answer;
+          button.dataset.index = index;
+          button.addEventListener("click", handleAnswerClick);
+          answersEl.appendChild(button);
+        });
+        statusEl.textContent = `Вопрос ${currentIndex + 1} из ${questions.length}`;
+      }
+
+      function handleAnswerClick(event) {
+        if (locked || screamerActive) return;
+        const chosenIndex = Number(event.currentTarget.dataset.index);
+        const current = questions[currentIndex];
+        if (chosenIndex === current.correctIndex) {
+          currentIndex += 1;
+          renderQuestion();
+        } else {
+          triggerScreamer();
+        }
+      }
+
+      function triggerScreamer() {
+        screamerActive = true;
+        document.body.classList.add("screamer-active");
+        screamerOverlay.classList.add("active");
+        lockMessage.classList.remove("active");
+        screamerVideo.currentTime = 0;
+        screamerVideo.muted = false;
+        screamerVideo.play();
+
+        if (screamerOverlay.requestFullscreen) {
+          screamerOverlay.requestFullscreen().catch(() => {});
+        }
+      }
+
+      screamerVideo.addEventListener("ended", () => {
+        locked = true;
+        screamerActive = false;
+        lockMessage.classList.add("active");
+        screamerOverlay.classList.remove("active");
+        document.body.classList.add("screamer-active");
+        document.body.style.pointerEvents = "none";
+      });
+
+      renderQuestion();
+    </script>
+  </body>
+</html>
